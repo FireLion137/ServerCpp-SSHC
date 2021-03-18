@@ -47,7 +47,7 @@ char ACK[100]={'P','1','A','1','#','Z'};
 char buffer[256],config[100];     //id_aula[5],lung_trama[3],cod_com[2],temp[5],umid[5],amp[5],lux[5],man_aut[2],ora[7],s_pres[5],s_lux[5],tim_i[7],tim_f[7];
 int wsastartup;
 int ls_result;
-int lunghezza,lunghezza1,n,contatore=0,i;
+int lunghezza1,n,contatore=0;
 fstream pacchetto;
 
 /********************************************* prototipi funzioni *********************************************/
@@ -107,31 +107,41 @@ void invia(){
 
 /********************************************* prototipo funzione salva ***************************************/
 void salva(){
-	int valore=0,i=0;
+	int valore=0,i;
+	int lunghezza=0;
 	
+	for(i=0;i<256;i++)
+    {
+    	lunghezza++;
+        if(buffer[i]=='#' && buffer[i+1]=='#')
+        {
+        	lunghezza++;
+        	break;
+		}
+    }
+    
 	//Semplice ciclo for per salvare su file di testo
-	do
-	{
+//	do
+//	{
 		pacchetto.open("File/pacchetto.txt",ios::out);
 		if(pacchetto.fail()){
 			cout<<"Errore\n";
 		}
 		else{
 			for(i=0;i<lunghezza;i++)
-			{
 				pacchetto<<buffer[i];
-			}
+			
 			pacchetto<<endl;
 			valore=1;
 		}
-	}while((pacchetto.fail())&&valore==0);
+//	}while((pacchetto.fail())&&valore==0);
 	pacchetto.close();
 	
 }
 
 /********************************************* prototipo funzione carica **************************************/
 void carica(){
-	int valore=0,i=0;
+	int valore=0,i;
 	
 	//Semplice ciclo do per caricare da file di testo
 	do
@@ -187,12 +197,12 @@ void ricezione(){
     //AF_INET fa riferimento alla famiglia di indirizzi IPv4
     Server_addr.sin_family = AF_INET;
     //Inserimento dell'indirizzo IPv4 del server (statico)
-    Server_addr.sin_addr.s_addr = inet_addr("192.168.1.102");
+    Server_addr.sin_addr.s_addr = inet_addr("192.168.0.106");
     //Porta di riferimento della socket del server (qualsiasi, anche se è consigliabile una porta effimera)
     Server_addr.sin_port = htons(port);
      
     //Una bind (cioè collegamento) della socket in modo tale da rendersi disponibile ad ascoltare
-    if (bind(listenSocket,(LPSOCKADDR) &Server_addr,sizeof(struct sockaddr)) < 0) {
+    if (bind(listenSocket, (LPSOCKADDR) &Server_addr, sizeof(Server_addr)) < 0) {
     	cout << "Server: errore durante la bind." << endl;
         closesocket(listenSocket);
         system("pause");
@@ -216,9 +226,9 @@ void ricezione(){
     //Dimensione della struttura sockaddr_in (per avere l'area effettiva usata dalla struttura dati)
     sin_size = sizeof(struct sockaddr_in);
     
-    //Accettazione del client che tenta di comunicare con il server
-    remoteSocket = accept(listenSocket, (struct sockaddr *) &Client_addr, &sin_size);
     
+    //Accettazione del client che tenta di comunicare con il server
+    remoteSocket = accept(listenSocket, (LPSOCKADDR) &Client_addr, &sin_size);
     //Stampa dell'accettazione con un client
     #ifdef DEBUG
     cout << "Accettata la Connessione con Client: " << inet_ntoa(Client_addr.sin_addr) << endl;
@@ -236,7 +246,7 @@ void ricezione(){
     //controllo del messaggio (lunghezza maggiore 10 è una richiesta, minore è un ack)
     int stato=0;
 	
-    for(i=0;i<256;i++)
+    for(i=0;i<86;i++)
     {
     	if(buffer[i]=='#')
     	{
@@ -308,8 +318,7 @@ void ricezione(){
 
 /********************************************* prototipo funzione main ****************************************/
 int main(int argc, char *argv[]) {
-   	int x=30;
-   	
+
     while(1)
 	{      
     	#ifdef Type_Server
@@ -317,12 +326,11 @@ int main(int argc, char *argv[]) {
 			#ifdef DEBUG
 				cout << "Chiudo il Server" << endl;
 			#endif
-		    lunghezza=0;
 			WSACleanup(); 
 			sleep(2);
 		    system("cls");
 	    #endif
-	    sleep(x);
+	    sleep(30);
 	}
    
 	system("pause");
