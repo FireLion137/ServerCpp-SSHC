@@ -232,6 +232,7 @@ void ricezione(){
     //inserimento nel buffer del pacchetto ricevuto
     recv(remoteSocket, buffer, sizeof(buffer), 0);
     
+ /*   Metto a commento in quanto sostituisco il tutto con un controllo del carattere COM nel buffer
     //controllo del messaggio (lunghezza maggiore 10 è una richiesta, minore è un ack)
     int stato=0;
 	
@@ -277,6 +278,32 @@ void ricezione(){
 		send(remoteSocket, config, sizeof(config), 0);
 		sleep(1);
 	}
+ */
+ 
+ 	//controllo del messaggio (Se COM = 'd' è una richiesta, Se COM = 'c' è un ack)
+ 	//se COM = 'd' è un messaggio, quindi lo salvo richiamando la funzione salva()
+	if(buffer[5]=='d')
+	{
+   		salva();
+    	cout<<"Salva"<<endl;
+    	sleep(1);
+    	//invio un ACK di avvenuta ricezione
+		send(remoteSocket, ACK, sizeof(ACK), 0);
+		sleep(1);
+	}
+	//se COM = 'c' è un ack, quindi carico il messaggio e spedisco il pacchetto
+	else if(buffer[5]=='c')
+	{
+		sleep(4);
+		cout<<"Carica"<<endl;
+		carica();
+		cout<<config<<endl<<sizeof(config)<<endl;
+		sleep(1);
+		//invio il pacchetto
+		send(remoteSocket, config, sizeof(config), 0);
+		sleep(1);
+	}
+	
 }
 
 /********************************************* prototipo funzione main ****************************************/
