@@ -17,8 +17,10 @@ SOCKET clientSocket;
 SOCKADDR_IN addr;
 
 char config[100];
-string s="43#25d#D#55#35##";
-string c="43#25c#D#55#35##";
+char buffer[100];
+
+string s="6485#d#D#55#35##";
+string c="6485#c#D#55#35##";
 
 /********************************************* prototipo funzione invia ***************************************/
 void invia(){
@@ -27,7 +29,7 @@ void invia(){
 	WORD wVersionRequested = 0x0202;
     WSADATA wsaData;   
     int wsastartup = WSAStartup(wVersionRequested, &wsaData);
-    
+
     //Controllo errore di creazione
 	if (wsastartup != NO_ERROR) 
 	{
@@ -64,6 +66,10 @@ void invia(){
     //Invia i dati al server
     send(clientSocket, config, sizeof(config), 0);
     
+    //Riceve i dati dal server
+    recv(clientSocket, buffer, sizeof(buffer), 0);
+    cout<<"\nMessaggio ricevuto dal server: "<<buffer<<"\n";
+    
 }
 
 int main()
@@ -71,13 +77,12 @@ int main()
 	while(1)
 	{   
 		//Inserisco in config una stringa di caratteri
-		for(int i=0;i<s.length();i++)
-        	config[i]=s[i];
-        
+		strcpy(config,s.c_str());
+		
     	#ifdef Type_Client
 			invia();
 			#ifdef DEBUG
-				cout << "Chiudo il Client" << endl;
+				cout << "\n\nChiudo il Client" << endl;
 			#endif
 			//WSACleanup();   //Non funziona se lo uso
 			sleep(5);

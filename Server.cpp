@@ -33,15 +33,49 @@ char buffer[256],config[100];     //id_aula[5],lung_trama[3],cod_com[2],temp[5],
 int wsastartup;
 int ls_result;
 fstream pacchetto;
-
+fstream FileIdAula;
 
 
 /********************************************* prototipo funzione salva - Salvataggio pacchetto su file di testo ************************************/
 void salva(){
 	int i;
 	int lunghezza=0;
+	string IdAula,checkIdAula;
+	bool controllo=false;
 	
-	cout<<"\nSono nel void salva()\n";
+	cout<<"Sono nel void salva()\n\n";
+	
+	//Inserisco in IdAula i primi 4 byte del buffer, che corrispondono all'Id dell'Aula
+	for (i=0;i<4;i++)
+		IdAula+= buffer[i];
+	
+	//Controllo se l'IdAula ricevuto è  gia' presente nel file FileIdAula.txt
+	FileIdAula.open("FileIdAula.txt",ios::in);
+	if(FileIdAula.fail())
+		cout<<"File FileIdAula Inesistente, controllo IdAula non funzionante\n";
+	else
+	{
+		while(!FileIdAula.eof())
+		{
+			getline(FileIdAula, checkIdAula);
+			if(checkIdAula == IdAula)
+			{
+				controllo=true;
+				cout<<"IdAula "<<IdAula<<" gia' presente nel file FileIdAula\n";
+			}
+		}
+	}
+	FileIdAula.close();
+	//Se l'IdAula ricevuto non è presente nel file FileIdAula.txt, lo inserisco in successione all'ultimo presente nel file
+	if(controllo==false)
+	{
+		FileIdAula.open("FileIdAula.txt",ios::app);
+		FileIdAula<<IdAula<<"\n";
+		FileIdAula.close();
+	}
+	IdAula+= ".txt";
+	
+	//Calcolo lunghezza tramite controllo del numero degli #
 	for(i=0;i<256;i++)
     {
     	lunghezza++;
@@ -52,30 +86,29 @@ void salva(){
 		}
     }
 
-		pacchetto.open("Pacchetto.txt",ios::out);
-		if(pacchetto.fail())
-			cout<<"Errore\n";
-		else
-		{
-			for(i=0;i<lunghezza;i++)
-				pacchetto<<buffer[i];
-			
-			pacchetto<<endl;
-			
-		}
+    pacchetto.open(IdAula.c_str(),ios::out);
+	if(pacchetto.fail())
+		cout<<"Errore\n";
+	//Inserisco nel file dell' IdAula unico per ogni classe il contenuto del buffer
+	else
+	{
+		for(i=0;i<lunghezza;i++)
+			pacchetto<<buffer[i];
+		pacchetto<<endl;
+	}
 	pacchetto.close();
-	
 }
 
 /********************************************* prototipo funzione carica - Caricamento pacchetto su file di testo ***********************************/
 void carica(){
 	int i;
 	
-	cout<<"\nSono nel void carica()\n";
+	cout<<"\nSono nel void carica()\n\n";
 
 		pacchetto.open("Configurazione.txt",ios::in);
 		if(pacchetto.fail())
 			cout<<"Errore\n";
+		//Inserisco in config il contenuto del file Configurazione.txt
 		else
 		{
 			pacchetto>>config[i];
@@ -156,8 +189,8 @@ void ricezione(){
     remoteSocket = accept(listenSocket, (LPSOCKADDR) &Client_addr, &sin_size);
     //Stampa dell'accettazione con un client
     #ifdef DEBUG
-    cout << "Accettata la Connessione con Client: " << inet_ntoa(Client_addr.sin_addr) << endl;
-    cout<<"\n\n"<<remoteSocket<<"\n\n";
+    cout << "Accettata la Connessione con Client: " << inet_ntoa(Client_addr.sin_addr) <<"\n\n";
+    //cout<<"\n\n"<<remoteSocket<<"\n\n";
     #endif
     
     //memset aggiunge il valore per i successivi byte, in questo caso impone tutti 0 per 256 byte nel buffer
@@ -167,31 +200,39 @@ void ricezione(){
     //inserimento nel buffer del pacchetto ricevuto
     recv(remoteSocket, buffer, sizeof(buffer), 0);
     
-    	for(i=0;i<256;i++)
-    		cout<<buffer[i];
+    //	for(i=0;i<256;i++)
+    //		cout<<buffer[i];
 
  
  	//controllo del messaggio (Se COM = 'd' è una richiesta, Se COM = 'c' è un ack)
  	//se COM = 'd' è un messaggio, quindi lo salvo richiamando la funzione salva()
-	if(buffer[5]=='d')
-	{
-		cout<<"Salva"<<endl;
-   		salva();
-    	sleep(1);
-    	//invio un ACK di avvenuta ricezione
-		send(remoteSocket, ACK, sizeof(ACK), 0);
-		sleep(1);
-	}
-	//se COM = 'c' è un ack, quindi carico il messaggio e spedisco il pacchetto
-	else if(buffer[5]=='c')
-	{
-		cout<<"Carica"<<endl;
-		carica();
-		cout<<config<<endl<<sizeof(config)<<endl;
-		sleep(1);
-		//invio il pacchetto
-		send(remoteSocket, config, sizeof(config), 0);
-		sleep(1);
+ 	switch (buffer[5])
+ 	{
+ 		case 'd':
+		{
+			cout<<"Salva"<<endl;
+   			salva();
+    		sleep(1);
+    		//invio un ACK di avvenuta ricezione
+			send(remoteSocket, ACK, sizeof(ACK), 0);
+			sleep(1);
+		}break;
+		//se COM = 'c' è un ack, quindi carico il messaggio e spedisco il pacchetto
+		case 'c':
+		{
+			cout<<"Carica"<<endl;
+			carica();
+			cout<<config<<endl<<sizeof(config)<<endl;
+			sleep(1);
+			//invio il pacchetto
+			send(remoteSocket, config, sizeof(config), 0);
+			sleep(1);
+		}break;
+		//se COM = 'g' è un
+		case 'g':
+		{
+			
+		}break;
 	}
 	
 }
@@ -204,7 +245,7 @@ int main(int argc, char *argv[])
     	#ifdef Type_Server
 			ricezione();
 			#ifdef DEBUG
-				cout << "Chiudo il Server" << endl;
+				cout << "\n\nChiudo il Server" << endl;
 			#endif
 			WSACleanup(); 
 			sleep(5);
