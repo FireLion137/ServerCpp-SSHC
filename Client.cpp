@@ -1,7 +1,7 @@
+/******************************************* dichiarazioni costanti *********************************************/
 #define DEBUG
-//#define Type_Server
-#define Type_Client
 
+/********************************************* inclusione librerie **********************************************/
 #include <winsock.h>
 #include <iostream>
 #include <iomanip>
@@ -10,6 +10,7 @@
 
 using namespace std;
 
+/********************************************* dichiarazioni variabili ******************************************/
 SOCKET remoteSocket;
 short port;
 
@@ -19,8 +20,9 @@ SOCKADDR_IN addr;
 char config[100];
 char buffer[100];
 
+//Stringhe di prova da inviare al Server
 string s="6485#d#D#55#35##";
-string c="6485#c#D#55#35##";
+string c="6485#g#D#55#35##";
 
 /********************************************* prototipo funzione invia ***************************************/
 void invia(){
@@ -45,12 +47,22 @@ void invia(){
     //AF_INET fa riferimento alla famiglia di indirizzi IPv4
     addr.sin_family = AF_INET;
     //Inserimento dell'indirizzo IPv4 del server (statico)
-    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr.sin_addr.s_addr = inet_addr("192.168.0.103"); 			//Usare "127.0.0.1" se si vuole far funzionare in locale
     //Porta di riferimento della socket del server (qualsiasi, anche se è consigliabile una porta effimera)
     addr.sin_port = htons(port);
     
+    //Creazione della socket di invio
     clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     
+    //Controllo creazione della socket
+	if (clientSocket < 0)
+	{
+		cout << "Server: errore nella creazione del socket.\n" << endl;
+		return;
+	}
+    else
+    	cout << "Il Socket e' pronto\n"<< endl;
+    	
     
     //Si tenta di connettersi al server
     if (connect(clientSocket, (LPSOCKADDR) &addr, sizeof(addr)) < 0)
@@ -67,27 +79,29 @@ void invia(){
     send(clientSocket, config, sizeof(config), 0);
     
     //Riceve i dati dal server
-    recv(clientSocket, buffer, sizeof(buffer), 0);
-    cout<<"\nMessaggio ricevuto dal server: "<<buffer<<"\n";
+    if(recv(clientSocket, buffer, sizeof(buffer), 0) < 0 )
+    	cout<<"\nErrore: Nessun Messaggio ricevuto dal server\n";
+    else
+    	cout<<"\nMessaggio ricevuto dal server: "<<buffer<<"\n";
     
 }
 
 int main()
 {
+	//Uso un while per provare più volte le connessioni tra Server e Client
 	while(1)
 	{   
 		//Inserisco in config una stringa di caratteri
 		strcpy(config,s.c_str());
 		
-    	#ifdef Type_Client
-			invia();
-			#ifdef DEBUG
-				cout << "\n\nChiudo il Client" << endl;
-			#endif
-			//WSACleanup();   //Non funziona se lo uso
-			sleep(5);
-		    system("cls");
-	    #endif
+		//Richiamo il void invia()
+		invia();
+		#ifdef DEBUG
+			cout << "\n\nChiudo il Client" << endl;
+		#endif
+		sleep(5);
+		system("cls");
+		    
 	    sleep(5);
 	}
    

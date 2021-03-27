@@ -1,9 +1,5 @@
-
-
 /******************************************* dichiarazioni costanti *********************************************/
-
 #define DEBUG
-#define Type_Server
 
 /********************************************* inclusione librerie **********************************************/
 #include <winsock.h>
@@ -24,56 +20,25 @@ SOCKADDR_IN Client_addr;
 int sin_size;
 short port;   
 
-SOCKET clientsocket;
-SOCKADDR_IN addr;     
-
 
 char ACK[100]={'P','1','A','1','#','Z'};
 char buffer[256],config[100];     //id_aula[5],lung_trama[3],cod_com[2],temp[5],umid[5],amp[5],lux[5],man_aut[2],ora[7],s_pres[5],s_lux[5],tim_i[7],tim_f[7];
 int wsastartup;
 int ls_result;
 fstream pacchetto;
-fstream FileIdAula;
 
 
 /********************************************* prototipo funzione salva - Salvataggio pacchetto su file di testo ************************************/
 void salva(){
 	int i;
 	int lunghezza=0;
-	string IdAula,checkIdAula;
-	bool controllo=false;
+	string IdAula;
 	
 	cout<<"Sono nel void salva()\n\n";
 	
 	//Inserisco in IdAula i primi 4 byte del buffer, che corrispondono all'Id dell'Aula
 	for (i=0;i<4;i++)
 		IdAula+= buffer[i];
-	
-	//Controllo se l'IdAula ricevuto è  gia' presente nel file FileIdAula.txt
-	FileIdAula.open("FileIdAula.txt",ios::in);
-	if(FileIdAula.fail())
-		cout<<"File FileIdAula Inesistente, controllo IdAula non funzionante\n";
-	else
-	{
-		while(!FileIdAula.eof())
-		{
-			getline(FileIdAula, checkIdAula);
-			if(checkIdAula == IdAula)
-			{
-				controllo=true;
-				cout<<"IdAula "<<IdAula<<" gia' presente nel file FileIdAula\n";
-			}
-		}
-	}
-	FileIdAula.close();
-	//Se l'IdAula ricevuto non è presente nel file FileIdAula.txt, lo inserisco in successione all'ultimo presente nel file
-	if(controllo==false)
-	{
-		FileIdAula.open("FileIdAula.txt",ios::app);
-		FileIdAula<<IdAula<<"\n";
-		FileIdAula.close();
-	}
-	IdAula+= ".txt";
 	
 	//Calcolo lunghezza tramite controllo del numero degli #
 	for(i=0;i<256;i++)
@@ -85,8 +50,11 @@ void salva(){
         	break;
 		}
     }
-
-    pacchetto.open(IdAula.c_str(),ios::out);
+    
+    string Directory = "C:\\Program Files (x86)\\EasyPHP-Devserver-17\\eds-www\\" ;    //Directory dove salvare il file txt, ricordare di mettere \\ anche alla fine
+    
+	//Crea un file unico con nome l'Id dell'Aula nella Directory specificata sopra nella string Directory
+    pacchetto.open((Directory + IdAula + ".txt").c_str(),ios::out);
 	if(pacchetto.fail())
 		cout<<"Errore\n";
 	//Inserisco nel file dell' IdAula unico per ogni classe il contenuto del buffer
@@ -105,9 +73,11 @@ void carica(){
 	
 	cout<<"\nSono nel void carica()\n\n";
 
-		pacchetto.open("Configurazione.txt",ios::in);
+	string Directory = "C:\\Program Files (x86)\\EasyPHP-Devserver-17\\eds-www\\" ;    //Directory dove trovare il file txt, ricordare di mettere \\ anche alla fine
+	
+		pacchetto.open((Directory + "Configurazione.txt").c_str(),ios::in);
 		if(pacchetto.fail())
-			cout<<"Errore\n";
+			cout<<"Errore nell'apertura del File Configurazione.txt\n";
 		//Inserisco in config il contenuto del file Configurazione.txt
 		else
 		{
@@ -144,11 +114,11 @@ void ricezione(){
     //Controllo creazione della socket
 	if (listenSocket < 0)
 	{
-		cout << "Server: errore nella creazione del socket." << endl;
+		cout << "Server: Errore nella creazione del Socket.\n" << endl;
 		return;
 	}
     else
-    	cout << "il Socket e' pronto"<< endl;
+    	cout << "Il Socket e' pronto\n"<< endl;
         
     //Porta di ascolto della socket
     port = 4000;
@@ -156,7 +126,7 @@ void ricezione(){
     //AF_INET fa riferimento alla famiglia di indirizzi IPv4
     Server_addr.sin_family = AF_INET;
     //Inserimento dell'indirizzo IPv4 del server (statico)
-    Server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    Server_addr.sin_addr.s_addr = inet_addr("192.168.0.103");       //Usare "127.0.0.1" se si vuole far funzionare in locale
     //Porta di riferimento della socket del server (qualsiasi, anche se è consigliabile una porta effimera)
     Server_addr.sin_port = htons(port);
      
@@ -200,12 +170,15 @@ void ricezione(){
     //inserimento nel buffer del pacchetto ricevuto
     recv(remoteSocket, buffer, sizeof(buffer), 0);
     
-    //	for(i=0;i<256;i++)
-    //		cout<<buffer[i];
-
+    #ifdef DEBUG
+    cout<<"\nIl Pacchetto ricevuto e' ";
+    	for(i=0;i<256;i++)
+    		cout<<buffer[i];
+    cout<<"\n\n";
+	#endif
  
- 	//controllo del messaggio (Se COM = 'd' è una richiesta, Se COM = 'c' è un ack)
- 	//se COM = 'd' è un messaggio, quindi lo salvo richiamando la funzione salva()
+ 	//controllo del messaggio (Se TYPE = 'd' è una richiesta, Se TYPE = 'g' è un ack, Se TYPE = 'c' è )
+ 	//se TYPE = 'd' è un messaggio, quindi lo salvo richiamando la funzione salva()
  	switch (buffer[5])
  	{
  		case 'd':
@@ -217,19 +190,19 @@ void ricezione(){
 			send(remoteSocket, ACK, sizeof(ACK), 0);
 			sleep(1);
 		}break;
-		//se COM = 'c' è un ack, quindi carico il messaggio e spedisco il pacchetto
-		case 'c':
+		//se TYPE = 'g' è un ack, quindi carico il messaggio e spedisco il pacchetto
+		case 'g':
 		{
 			cout<<"Carica"<<endl;
 			carica();
-			cout<<config<<endl<<sizeof(config)<<endl;
+			//cout<<config<<endl<<sizeof(config)<<endl;
 			sleep(1);
 			//invio il pacchetto
 			send(remoteSocket, config, sizeof(config), 0);
 			sleep(1);
 		}break;
-		//se COM = 'g' è un
-		case 'g':
+		//se TYPE = 'c' è un
+		case 'c':
 		{
 			
 		}break;
@@ -240,17 +213,18 @@ void ricezione(){
 /********************************************* prototipo funzione main ****************************************/
 int main(int argc, char *argv[])
 {
+	//Uso un while per provare più volte le connessioni tra Server e Client
     while(1)
 	{      
-    	#ifdef Type_Server
-			ricezione();
-			#ifdef DEBUG
-				cout << "\n\nChiudo il Server" << endl;
-			#endif
-			WSACleanup(); 
-			sleep(5);
-		    system("cls");
-	    #endif
+		//Richiamo il void ricezione()
+		ricezione();
+		#ifdef DEBUG
+			cout << "\n\nChiudo il Server" << endl;
+		#endif
+		WSACleanup(); 
+		sleep(5);
+		system("cls");
+	    
 	    sleep(3);
 	}
    
