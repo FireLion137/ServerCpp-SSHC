@@ -21,8 +21,9 @@ char config[100];
 char buffer[100];
 
 //Stringhe di prova da inviare al Server
-string s="6485#d#D#55#35##";
-string c="6485#g#D#55#35##";
+string d="6485#d#+10.3#80.30#27.36#06.85#57.41#03.60#a#1#40.42#12.75#19#36#40#29#03#21#1#17#42#53#21#24#51##";
+string c="6485#c##";
+string g="6485#g##";
 
 /********************************************* prototipo funzione invia ***************************************/
 void invia(){
@@ -92,17 +93,19 @@ int main()
 	while(1)
 	{   
 		//Inserisco in config una stringa di caratteri
-		strcpy(config,s.c_str());
+		strcpy(config,g.c_str());
 		
 		//Richiamo il void invia()
 		invia();
 		#ifdef DEBUG
 			cout << "\n\nChiudo il Client" << endl;
 		#endif
-		sleep(5);
+		system("pause");
+		
+		sleep(1);
 		system("cls");
 		    
-	    sleep(5);
+	    sleep(3);
 	}
    
 	system("pause");

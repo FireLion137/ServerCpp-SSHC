@@ -18,7 +18,11 @@ SOCKET remoteSocket;
 SOCKADDR_IN Server_addr;
 SOCKADDR_IN Client_addr;
 int sin_size;
-short port;   
+
+//Porta di ascolto della socket
+short port = 4000; 
+//Ip del Server
+string ip = "192.168.0.103";
 
 
 char ACK[100]={'P','1','A','1','#','Z'};
@@ -27,18 +31,21 @@ int wsastartup;
 int ls_result;
 fstream pacchetto;
 
+string Directory;// = "C:\\Program Files (x86)\\EasyPHP-Devserver-17\\eds-www\\" ;    //Directory dove salvare/trovare il file txt, ricordare di mettere \\ anche alla fine
+
+//Id dell'Aula presente nei primi 4 byte del messaggio ricevuto dal client
+string IdAula;
+
+//COM ricevuto dal Data Logger
+char COM = 0x82; 		//0x82 per Spegnere VMC e Aprire Finestra ; 0x85 per Accendere VMC e Chiudere Finestra
 
 /********************************************* prototipo funzione salva - Salvataggio pacchetto su file di testo ************************************/
 void salva(){
 	int i;
 	int lunghezza=0;
-	string IdAula;
+	
 	
 	cout<<"Sono nel void salva()\n\n";
-	
-	//Inserisco in IdAula i primi 4 byte del buffer, che corrispondono all'Id dell'Aula
-	for (i=0;i<4;i++)
-		IdAula+= buffer[i];
 	
 	//Calcolo lunghezza tramite controllo del numero degli #
 	for(i=0;i<256;i++)
@@ -51,7 +58,6 @@ void salva(){
 		}
     }
     
-    string Directory = "C:\\Program Files (x86)\\EasyPHP-Devserver-17\\eds-www\\" ;    //Directory dove salvare il file txt, ricordare di mettere \\ anche alla fine
     
 	//Crea un file unico con nome l'Id dell'Aula nella Directory specificata sopra nella string Directory
     pacchetto.open((Directory + IdAula + ".txt").c_str(),ios::out);
@@ -68,12 +74,11 @@ void salva(){
 }
 
 /********************************************* prototipo funzione carica - Caricamento pacchetto su file di testo ***********************************/
-void carica(){
+void configura(){
 	int i;
 	
 	cout<<"\nSono nel void carica()\n\n";
 
-	string Directory = "C:\\Program Files (x86)\\EasyPHP-Devserver-17\\eds-www\\" ;    //Directory dove trovare il file txt, ricordare di mettere \\ anche alla fine
 	
 		pacchetto.open((Directory + "Configurazione.txt").c_str(),ios::in);
 		if(pacchetto.fail())
@@ -120,13 +125,11 @@ void ricezione(){
     else
     	cout << "Il Socket e' pronto\n"<< endl;
         
-    //Porta di ascolto della socket
-    port = 4000;
     
     //AF_INET fa riferimento alla famiglia di indirizzi IPv4
     Server_addr.sin_family = AF_INET;
     //Inserimento dell'indirizzo IPv4 del server (statico)
-    Server_addr.sin_addr.s_addr = inet_addr("192.168.0.103");       //Usare "127.0.0.1" se si vuole far funzionare in locale
+    Server_addr.sin_addr.s_addr = inet_addr(ip.data());       //Usare "127.0.0.1" se si vuole far funzionare in locale
     //Porta di riferimento della socket del server (qualsiasi, anche se è consigliabile una porta effimera)
     Server_addr.sin_port = htons(port);
      
@@ -177,6 +180,12 @@ void ricezione(){
     cout<<"\n\n";
 	#endif
  
+ 	IdAula="";
+ 	//Inserisco in IdAula i primi 4 byte del buffer, che corrispondono all'Id dell'Aula
+	for (i=0;i<4;i++)
+		IdAula+= buffer[i];
+	
+	
  	//controllo del messaggio (Se TYPE = 'd' è una richiesta, Se TYPE = 'g' è un ack, Se TYPE = 'c' è )
  	//se TYPE = 'd' è un messaggio, quindi lo salvo richiamando la funzione salva()
  	switch (buffer[5])
@@ -186,25 +195,34 @@ void ricezione(){
 			cout<<"Salva"<<endl;
    			salva();
     		sleep(1);
-    		//invio un ACK di avvenuta ricezione
-			send(remoteSocket, ACK, sizeof(ACK), 0);
+    		//Creazione messaggio da inviare al client contenente l'Id dell'Aula a cui si è connessi e l'ACK
+    		string messaggio= IdAula + "#" + ACK + "##";
+    		//invio del messaggio di avvenuta ricezione
+			send(remoteSocket, messaggio.data(),  messaggio.length(), 0);
 			sleep(1);
 		}break;
-		//se TYPE = 'g' è un ack, quindi carico il messaggio e spedisco il pacchetto
+		//se TYPE = 'g' è una richiesta di configurazione, quindi carico il messaggio di config e lo spedisco
 		case 'g':
 		{
-			cout<<"Carica"<<endl;
-			carica();
+			cout<<"Configura"<<endl;
+			configura();
 			//cout<<config<<endl<<sizeof(config)<<endl;
 			sleep(1);
 			//invio il pacchetto
 			send(remoteSocket, config, sizeof(config), 0);
 			sleep(1);
 		}break;
-		//se TYPE = 'c' è un
+		//se TYPE = 'c' è una richiesta del COM per sapere se Aprire o Chiudere la Finestra
 		case 'c':
 		{
+			cout<<"Comando"<<endl;
 			
+			sleep(1);
+			//Creazione messaggio da inviare al client contenente l'Id dell'Aula a cui si è connessi, il Type della richiesta e il COMando da eseguire
+    		string messaggio= IdAula + "#c#" + COM + "##";
+    		//invio del messaggio del COM
+			send(remoteSocket, messaggio.data(),  messaggio.length(), 0);
+			sleep(1);
 		}break;
 	}
 	
@@ -221,8 +239,10 @@ int main(int argc, char *argv[])
 		#ifdef DEBUG
 			cout << "\n\nChiudo il Server" << endl;
 		#endif
-		WSACleanup(); 
-		sleep(5);
+		WSACleanup();
+		system("pause");
+		
+		sleep(1);
 		system("cls");
 	    
 	    sleep(3);
