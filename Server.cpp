@@ -22,7 +22,7 @@ int sin_size;
 //Porta di ascolto della socket
 short port = 4000; 
 //Ip del Server
-string ip = "192.168.0.103";
+string ip = "192.168.0.105";
 
 
 char ACK[100]={'P','1','A','1','#','Z'};
@@ -30,8 +30,6 @@ char buffer[256],config[100];     //id_aula[5],lung_trama[3],cod_com[2],temp[5],
 int wsastartup;
 int ls_result;
 fstream pacchetto;
-
-string Directory;// = "C:\\Program Files (x86)\\EasyPHP-Devserver-17\\eds-www\\" ;    //Directory dove salvare/trovare il file txt, ricordare di mettere \\ anche alla fine
 
 //Id dell'Aula presente nei primi 4 byte del messaggio ricevuto dal client
 string IdAula;
@@ -58,11 +56,12 @@ void salva(){
 		}
     }
     
+    string Directory = "Data\\";// = "C:\\Program Files (x86)\\EasyPHP-Devserver-17\\eds-www\\Data\\" ;    //Directory dove salvare/trovare il file txt, ricordare di mettere \\ anche alla fine
     
 	//Crea un file unico con nome l'Id dell'Aula nella Directory specificata sopra nella string Directory
-    pacchetto.open((Directory + IdAula + ".txt").c_str(),ios::out);
+    pacchetto.open((Directory + "Data_" + IdAula + ".txt").c_str(),ios::out);
 	if(pacchetto.fail())
-		cout<<"Errore\n";
+		cout<<"Errore nella creazione del File\n";
 	//Inserisco nel file dell' IdAula unico per ogni classe il contenuto del buffer
 	else
 	{
@@ -79,10 +78,11 @@ void configura(){
 	
 	cout<<"\nSono nel void carica()\n\n";
 
+	string Directory = "Conf\\";// = "C:\\Program Files (x86)\\EasyPHP-Devserver-17\\eds-www\\Data\\" ;    //Directory dove salvare/trovare il file txt, ricordare di mettere \\ anche alla fine
 	
-		pacchetto.open((Directory + "Configurazione.txt").c_str(),ios::in);
+		pacchetto.open((Directory + "Conf_" + IdAula + ".txt").c_str(),ios::in);
 		if(pacchetto.fail())
-			cout<<"Errore nell'apertura del File Configurazione.txt\n";
+			cout<<"Errore nell'apertura del File\n";
 		//Inserisco in config il contenuto del file Configurazione.txt
 		else
 		{

@@ -48,7 +48,7 @@ void invia(){
     //AF_INET fa riferimento alla famiglia di indirizzi IPv4
     addr.sin_family = AF_INET;
     //Inserimento dell'indirizzo IPv4 del server (statico)
-    addr.sin_addr.s_addr = inet_addr("192.168.0.103"); 			//Usare "127.0.0.1" se si vuole far funzionare in locale
+    addr.sin_addr.s_addr = inet_addr("192.168.0.105"); 			//Usare "127.0.0.1" se si vuole far funzionare in locale
     //Porta di riferimento della socket del server (qualsiasi, anche se è consigliabile una porta effimera)
     addr.sin_port = htons(port);
     
