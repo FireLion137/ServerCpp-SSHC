@@ -9,44 +9,40 @@
 #include <fstream>
 #include <unistd.h>
 
+#include "WINDOWS.h"  
+#include <mutex>
+
 using namespace std;
+
+mutex console;
+
 
 /********************************************* dichiarazioni variabili ******************************************/
 
 SOCKET listenSocket;
-SOCKET remoteSocket;
 SOCKADDR_IN Server_addr;
 SOCKADDR_IN Client_addr;
 int sin_size;
 
-//Porta di ascolto della socket
-short port = 4000; 
-//Ip del Server
-string ip = "192.168.0.105";
+short port = 4000;  								//Porta di ascolto della socket
+string ip = "127.0.0.1";							//Ip del Server
 
+char ACK[7]={'P','1','A','1','B','Z'};
 
-char ACK[100]={'P','1','A','1','#','Z'};
-char buffer[256],config[100];     //id_aula[5],lung_trama[3],cod_com[2],temp[5],umid[5],amp[5],lux[5],man_aut[2],ora[7],s_pres[5],s_lux[5],tim_i[7],tim_f[7];
 int wsastartup;
 int ls_result;
 fstream pacchetto;
 
-//Id dell'Aula presente nei primi 4 byte del messaggio ricevuto dal client
-string IdAula;
 
-//COM ricevuto dal Data Logger
-char COM = 0x82; 		//0x82 per Spegnere VMC e Aprire Finestra ; 0x85 per Accendere VMC e Chiudere Finestra
+char COM = 0x82; 									//COM ricevuto dal Data Logger		//0x82 per Spegnere VMC e Aprire Finestra ; 0x85 per Accendere VMC e Chiudere Finestra
 
 /********************************************* prototipo funzione salva - Salvataggio pacchetto su file di testo ************************************/
-void salva(){
-	int i;
+void salva(char buffer[256], string IdClient){
 	int lunghezza=0;
 	
+	//cout<<"Sono nel void salva()\n\n";
 	
-	cout<<"Sono nel void salva()\n\n";
-	
-	//Calcolo lunghezza tramite controllo del numero degli #
-	for(i=0;i<256;i++)
+	for(int i=0;i<256;i++)							//Calcolo lunghezza tramite controllo del numero degli #
     {
     	lunghezza++;
         if(buffer[i]=='#' && buffer[i+1]=='#')
@@ -56,16 +52,15 @@ void salva(){
 		}
     }
     
-    string Directory = "Data\\";// = "C:\\Program Files (x86)\\EasyPHP-Devserver-17\\eds-www\\Data\\" ;    //Directory dove salvare/trovare il file txt, ricordare di mettere \\ anche alla fine
+    string Directory = "Data\\";					//Directory dove salvare/trovare il file txt, ricordare di mettere \\ anche alla fine
     
-	//Crea un file unico con nome l'Id dell'Aula nella Directory specificata sopra nella string Directory
-    pacchetto.open((Directory + "Data_" + IdAula + ".txt").c_str(),ios::out);
+    pacchetto.open((Directory + "Data_" + IdClient + ".txt").c_str(),ios::out);		//Crea un file Data unico con a nome l'Id dell'Aula nella Directory specificata sopra nella string Directory
 	if(pacchetto.fail())
 		cout<<"Errore nella creazione del File\n";
-	//Inserisco nel file dell' IdAula unico per ogni classe il contenuto del buffer
-	else
+		
+	else					//Inserisco nel file Data_*IdClient* unico per ogni classe il contenuto del buffer
 	{
-		for(i=0;i<lunghezza;i++)
+		for(int i=0;i<lunghezza;i++)
 			pacchetto<<buffer[i];
 		pacchetto<<endl;
 	}
@@ -73,18 +68,18 @@ void salva(){
 }
 
 /********************************************* prototipo funzione carica - Caricamento pacchetto su file di testo ***********************************/
-void configura(){
+void configura(char config[100], string IdClient){
 	int i;
 	
-	cout<<"\nSono nel void carica()\n\n";
+	//cout<<"\nSono nel void carica()\n\n";
 
-	string Directory = "Conf\\";// = "C:\\Program Files (x86)\\EasyPHP-Devserver-17\\eds-www\\Data\\" ;    //Directory dove salvare/trovare il file txt, ricordare di mettere \\ anche alla fine
+	string Directory = "Conf\\";					  //Directory dove salvare/trovare il file txt, ricordare di mettere \\ anche alla fine
 	
-		pacchetto.open((Directory + "Conf_" + IdAula + ".txt").c_str(),ios::in);
+		pacchetto.open((Directory + "Conf_" + IdClient + ".txt").c_str(),ios::in);	//Legge il file Conf unico con a nome l'Id dell'Aula nella Directory specificata sopra nella string Directory
 		if(pacchetto.fail())
 			cout<<"Errore nell'apertura del File\n";
-		//Inserisco in config il contenuto del file Configurazione.txt
-		else
+		
+		else				//Inserisco in config il contenuto del file Configurazione.txt
 		{
 			pacchetto>>config[i];
 			while (!pacchetto.eof())
@@ -97,135 +92,166 @@ void configura(){
 	pacchetto.close();
 }
 
-/********************************************* prototipo funzione ricezione - Ricezione dati dal Client *********************************************/
-void ricezione(){
-	int i;
+/********************************************* prototipo funzione comandi - decide il comando da inviare ***********************************/
+void comandi(char buffer[256], string IdClient){
 	
+	//cout<<"Sono nel void comandi()\n\n";	
+	//COM = 0x82;
+	
+	//float temp=stof(string(av).substr(1,5));																			
+}
+
+/********************************************* prototipo funzione ricezione - Ricezione dati dal Client *********************************************/
+DWORD WINAPI ricezione(LPVOID lpParameter)
+{
+    SOCKET threadSocket=*(SOCKET*)lpParameter;
+    //SOCKET* threadSocket_=(SOCKET*)lpParameter;
+    //SOCKET threadSocket=*threadSocket_;
+    
+    char buffer[256],config[100];					
+    
+    memset(buffer, 0, 256);								//memset aggiunge il valore per i successivi byte, in questo caso impone tutti 0 per 256 byte nel buffer //(lo azzera)
+	memset(config, 0, 100);	
+    
+    recv(threadSocket, buffer, sizeof(buffer), 0);				//inserimento nel buffer del pacchetto ricevuto
+ 
+ 																	
+    string IdClient=string(buffer).substr(0,4);		//Inserisco in IdClient i primi 4 byte del buffer (messaggio ricevuto dal client) , che corrispondono all'Id del Client
+		
+	#ifdef DEBUG
+		console.lock();
+    		cout<<IdClient<<" - Pacchetto ricevuto: "<<buffer<<endl;
+    	console.unlock();
+	#endif															
+ 							
+							 													
+ 	switch (buffer[5])					//controllo del messaggio (TYPE può essere: 'd', 'g', 'c')
+ 	{
+ 		case 'd':					//se TYPE = 'd' è un messaggio contenente dati da parte di un Client, quindi lo salvo richiamando la funzione salva()
+		{
+			//cout<<"Salva"<<endl;
+   			salva(buffer,IdClient);
+    		sleep(1);
+    		string messaggio= IdClient + "#" + ACK + "##";						//Creazione messaggio da inviare al client contenente l'Id dell'Aula a cui si è connessi e l'ACK
+    		//cout<<"ACK: "<<ACK<<endl;
+    		console.lock();
+				cout<<IdClient<<" - Messaggio da Inviare: "<<messaggio<<endl<<endl;
+			console.unlock();	
+			send(threadSocket, messaggio.data(),  messaggio.length(), 0);		//invio del messaggio di avvenuta ricezione
+			sleep(1);
+		}break;
+		
+		case 'g':					//se TYPE = 'g' è una richiesta di configurazione da parte in un Client, quindi carico il messaggio di config richiamando la funzione configura() e lo spedisco
+		{
+			//cout<<"Configura"<<endl;
+			configura(config,IdClient);
+			sleep(1);
+			console.lock();
+				cout<<IdClient<<" - Messaggio da Inviare: "<<config<<endl<<endl;
+			console.unlock();
+			send(threadSocket, config, sizeof(config), 0);						//invio il pacchetto del config
+			sleep(1);
+		}break;
+		
+		case 'c': 					//se TYPE = 'c' è una richiesta del COM da parte di un CLient per sapere se Aprire o Chiudere la Finestra
+		{
+			//cout<<"Comando"<<endl;
+			sleep(1);
+    		string messaggio= IdClient + "#c#" + COM + "##";						//Creazione messaggio da inviare al client contenente l'Id dell'Aula a cui si è connessi, il Type e il COMando da eseguire
+			console.lock();
+				cout<<IdClient<<" - Messaggio da Inviare: "<<messaggio<<endl<<endl;				
+			console.unlock();
+			send(threadSocket, messaggio.data(),  messaggio.length(), 0);		//invio del messaggio del COM
+			sleep(1);
+		}break;
+		
+		case 'o': 					//se TYPE = 'o' è un messaggio da parte di un DataLogger contenente informazioni per calcolare il COM
+		{
+			//cout<<"NON SO"<<endl;
+			// 0101#o#20.50#80.30#30.10#10.05#05.07#25.10#30.00#17.89##
+				//Da modificare tutto
+   			comandi(buffer,IdClient);
+    		sleep(1);
+    		string messaggio= IdClient + "#" + ACK + "##";						//Creazione messaggio da inviare al client contenente l'Id del DataLogger a cui si è connessi e l'ACK
+    		//cout<<"ACK: "<<ACK<<endl;
+    		console.lock();
+				cout<<IdClient<<" - Messaggio da Inviare: "<<messaggio<<endl<<endl;
+			console.unlock();	
+			send(threadSocket, messaggio.data(),  messaggio.length(), 0);		//invio del messaggio di avvenuta ricezione
+			sleep(1);
+		}break;
+	}
+	
+}
+
+/********************************************* prototipo funzione connessione - Connessione tra Server e Client *********************************************/
+void connessione()
+{
 	//Inizializzazione WSA (Winsock)
-	WORD wVersionRequested = 0x0202;
+	WORD wVersionRequested = 0x0202;						
     WSADATA wsaData;   
     wsastartup = WSAStartup(wVersionRequested, &wsaData);
     
-    //Controllo errore di creazione
-	if (wsastartup != NO_ERROR) 
+    SOCKET remoteSocket;
+    
+	if (wsastartup != NO_ERROR) 												//Controllo errore di creazione
 	{
-		cout << "Errore WSAStartup()" << endl;
+		cout<<"Errore WSAStartup()"<<endl;
 		return;
 	}
         
-    //Creazione della socket di ascolto
-    listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);					//Creazione della socket di ascolto
     
-    //Controllo creazione della socket
-	if (listenSocket < 0)
+	if (listenSocket < 0)														//Controllo creazione della socket
 	{
-		cout << "Server: Errore nella creazione del Socket.\n" << endl;
+		cout<<"Server: Errore nella creazione del Socket."<<endl<<endl;
 		return;
 	}
     else
-    	cout << "Il Socket e' pronto\n"<< endl;
+    	cout<<"Il Socket e' pronto"<<endl;
         
-    
-    //AF_INET fa riferimento alla famiglia di indirizzi IPv4
-    Server_addr.sin_family = AF_INET;
-    //Inserimento dell'indirizzo IPv4 del server (statico)
-    Server_addr.sin_addr.s_addr = inet_addr(ip.data());       //Usare "127.0.0.1" se si vuole far funzionare in locale
-    //Porta di riferimento della socket del server (qualsiasi, anche se è consigliabile una porta effimera)
-    Server_addr.sin_port = htons(port);
+
+    Server_addr.sin_family = AF_INET;									//AF_INET fa riferimento alla famiglia di indirizzi IPv4
+    Server_addr.sin_addr.s_addr = inet_addr(ip.data());      			//Inserimento dell'indirizzo IPv4 del server (statico)  //Usare "127.0.0.1" se si vuole far funzionare in locale
+    Server_addr.sin_port = htons(port);									//Porta di riferimento della socket del server (qualsiasi, anche se è consigliabile una porta effimera)
      
-    //Una bind (cioè collegamento) della socket in modo tale da rendersi disponibile ad ascoltare
-    if (bind(listenSocket, (LPSOCKADDR) &Server_addr, sizeof(Server_addr)) < 0)
+    if (bind(listenSocket, (LPSOCKADDR) &Server_addr, sizeof(Server_addr)) < 0)		//Una bind (cioè collegamento) della socket in modo tale da rendersi disponibile ad ascoltare
 	{
-    	cout << "Server: errore durante la bind." << endl;
+    	cout<<"Server: errore durante la bind."<<endl;
         closesocket(listenSocket);
         system("pause");
         return;
     }
         
-    //Passaggio da creazione ad ascolto effettivo della socket
-    ls_result = listen(listenSocket, SOMAXCONN);
+    ls_result = listen(listenSocket, SOMAXCONN);						//Passaggio da creazione ad ascolto effettivo della socket
     
-    //Controllo dell'effettivo successo per l'ascolto della socket
-    if (ls_result < 0) 
+    if (ls_result < 0) 						//Controllo dell'effettivo successo per l'ascolto della socket
 	{
-    	cout << "il Server non riesce a passare in ascolto" << endl;
+    	cout<<"Il Server non riesce a passare in ascolto"<<endl;
     	return;
 	}
     else 
 	{
-    	cout << "Il Server e' in Ascolto" << endl;
+    	cout<<"Il Server e' in Ascolto..."<<endl;
 	}
+    sin_size = sizeof(struct sockaddr_in);								//Dimensione della struttura sockaddr_in (per avere l'area effettiva usata dalla struttura dati)
     
-    //Dimensione della struttura sockaddr_in (per avere l'area effettiva usata dalla struttura dati)
-    sin_size = sizeof(struct sockaddr_in);
-    //Accettazione del client che tenta di comunicare con il server
-    remoteSocket = accept(listenSocket, (LPSOCKADDR) &Client_addr, &sin_size);
-    //Stampa dell'accettazione con un client
-    #ifdef DEBUG
-    cout << "Accettata la Connessione con Client: " << inet_ntoa(Client_addr.sin_addr) <<"\n\n";
-    //cout<<"\n\n"<<remoteSocket<<"\n\n";
-    #endif
-    
-    //memset aggiunge il valore per i successivi byte, in questo caso impone tutti 0 per 256 byte nel buffer
-    //(lo azzera)
-    memset(buffer, 0, 256);
-    
-    //inserimento nel buffer del pacchetto ricevuto
-    recv(remoteSocket, buffer, sizeof(buffer), 0);
-    
-    #ifdef DEBUG
-    cout<<"\nIl Pacchetto ricevuto e' ";
-    	for(i=0;i<256;i++)
-    		cout<<buffer[i];
-    cout<<"\n\n";
-	#endif
- 
- 	IdAula="";
- 	//Inserisco in IdAula i primi 4 byte del buffer, che corrispondono all'Id dell'Aula
-	for (i=0;i<4;i++)
-		IdAula+= buffer[i];
-	
-	
- 	//controllo del messaggio (Se TYPE = 'd' è una richiesta, Se TYPE = 'g' è un ack, Se TYPE = 'c' è )
- 	//se TYPE = 'd' è un messaggio, quindi lo salvo richiamando la funzione salva()
- 	switch (buffer[5])
- 	{
- 		case 'd':
-		{
-			cout<<"Salva"<<endl;
-   			salva();
-    		sleep(1);
-    		//Creazione messaggio da inviare al client contenente l'Id dell'Aula a cui si è connessi e l'ACK
-    		string messaggio= IdAula + "#" + ACK + "##";
-    		//invio del messaggio di avvenuta ricezione
-			send(remoteSocket, messaggio.data(),  messaggio.length(), 0);
-			sleep(1);
-		}break;
-		//se TYPE = 'g' è una richiesta di configurazione, quindi carico il messaggio di config e lo spedisco
-		case 'g':
-		{
-			cout<<"Configura"<<endl;
-			configura();
-			//cout<<config<<endl<<sizeof(config)<<endl;
-			sleep(1);
-			//invio il pacchetto
-			send(remoteSocket, config, sizeof(config), 0);
-			sleep(1);
-		}break;
-		//se TYPE = 'c' è una richiesta del COM per sapere se Aprire o Chiudere la Finestra
-		case 'c':
-		{
-			cout<<"Comando"<<endl;
-			
-			sleep(1);
-			//Creazione messaggio da inviare al client contenente l'Id dell'Aula a cui si è connessi, il Type della richiesta e il COMando da eseguire
-    		string messaggio= IdAula + "#c#" + COM + "##";
-    		//invio del messaggio del COM
-			send(remoteSocket, messaggio.data(),  messaggio.length(), 0);
-			sleep(1);
-		}break;
-	}
-	
+    while(true)
+    {
+    	remoteSocket = accept(listenSocket, (LPSOCKADDR) &Client_addr, &sin_size);							//Accettazione del client che tenta di comunicare con il server
+
+    	#ifdef DEBUG
+    	console.lock();
+    		cout << "\nAccettata la Connessione con Client: " << inet_ntoa(Client_addr.sin_addr) <<"\n\n";		//Stampa dell'accettazione con un client
+    	console.unlock();
+		//cout<<"\n\n"<<remoteSocket<<"\n\n";
+    	#endif
+       	
+       	DWORD ID1;
+    	HANDLE arh;
+    	arh=CreateThread(NULL,0,ricezione,&remoteSocket,0,&ID1);
+  		
+    }
 }
 
 /********************************************* prototipo funzione main ****************************************/
@@ -234,8 +260,7 @@ int main(int argc, char *argv[])
 	//Uso un while per provare più volte le connessioni tra Server e Client
     while(1)
 	{      
-		//Richiamo il void ricezione()
-		ricezione();
+		connessione();				//Richiamo il void connessione()
 		#ifdef DEBUG
 			cout << "\n\nChiudo il Server" << endl;
 		#endif
@@ -244,7 +269,6 @@ int main(int argc, char *argv[])
 		
 		sleep(1);
 		system("cls");
-	    
 	    sleep(3);
 	}
    

@@ -18,7 +18,7 @@ SOCKET clientSocket;
 SOCKADDR_IN addr;
 
 char config[100];
-char buffer[100];
+char buffer[256];
 
 //Stringhe di prova da inviare al Server
 string d="6485#d#+10.3#80.30#27.36#06.85#57.41#03.60#a#1#40.42#12.75#19#36#40#29#03#21#1#17#42#53#21#24#51##";
@@ -48,7 +48,7 @@ void invia(){
     //AF_INET fa riferimento alla famiglia di indirizzi IPv4
     addr.sin_family = AF_INET;
     //Inserimento dell'indirizzo IPv4 del server (statico)
-    addr.sin_addr.s_addr = inet_addr("192.168.0.105"); 			//Usare "127.0.0.1" se si vuole far funzionare in locale
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1"); 			//Usare "127.0.0.1" se si vuole far funzionare in locale
     //Porta di riferimento della socket del server (qualsiasi, anche se è consigliabile una porta effimera)
     addr.sin_port = htons(port);
     
@@ -73,13 +73,14 @@ void invia(){
 	
 	//Stampa di debug
 	#ifdef DEBUG
-    cout << "Messaggio da Inviare: "<<config << endl;
+    cout << "Messaggio da Inviare: "<<config;
     #endif
     
     //Invia i dati al server
     send(clientSocket, config, sizeof(config), 0);
     
     //Riceve i dati dal server
+    memset(buffer, 0, 256);
     if(recv(clientSocket, buffer, sizeof(buffer), 0) < 0 )
     	cout<<"\nErrore: Nessun Messaggio ricevuto dal server\n";
     else
@@ -93,7 +94,7 @@ int main()
 	while(1)
 	{   
 		//Inserisco in config una stringa di caratteri
-		strcpy(config,g.c_str());
+		strcpy(config,d.c_str());
 		
 		//Richiamo il void invia()
 		invia();
